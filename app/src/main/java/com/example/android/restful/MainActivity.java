@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
@@ -24,7 +25,9 @@ import com.example.android.restful.database.DataSource;
 import com.example.android.restful.model.DataItem;
 import com.example.android.restful.sample.SampleDataProvider;
 import com.example.android.restful.services.MyService;
+import com.example.android.restful.utils.NetworkHelper;
 
+import java.util.Arrays;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -36,7 +39,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String JSON_URL =
             "http://560057.youcanlearnit.net/services/json/itemsfeed.php";
 
-    DataSource mDataSource;
+//    DataSource mDataSource;
     List<DataItem> mItemList;
     DrawerLayout mDrawerLayout;
     ListView mDrawerList;
@@ -53,6 +56,17 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(MainActivity.this,
                     "Received " + dataItems.length + " items from service",
                     Toast.LENGTH_SHORT).show();
+
+
+            /* Convert the array of data item objects received from the backend IntentService
+               into an Array List/ Java List.
+             */
+
+            // Taking a raw array and wrapping it in a complex list of objects
+            mItemList = Arrays.asList(dataItems);
+
+            // Instantiate the item adapter and pass it to the RecyclerView
+            displayDataItems(null);
         }
     };
 
@@ -79,9 +93,9 @@ public class MainActivity extends AppCompatActivity {
         });
 //      end of navigation drawer
 
-        mDataSource = new DataSource(this);
-        mDataSource.open();
-        mDataSource.seedDatabase(dataItemList);
+//        mDataSource = new DataSource(this);
+//        mDataSource.open();
+//        mDataSource.seedDatabase(dataItemList);
 
         SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(this);
         boolean grid = settings.getBoolean(getString(R.string.pref_display_grid), false);
@@ -91,7 +105,19 @@ public class MainActivity extends AppCompatActivity {
             mRecyclerView.setLayoutManager(new GridLayoutManager(this, 3));
         }
 
-        displayDataItems(null);
+        // Disable this because when onCreate is called, the data won't be available yet
+//        displayDataItems(null);
+
+        // Check for network capability
+        networkOk = NetworkHelper.hasNetworkAccess(this);
+
+        if (networkOk) {
+            Intent intent = new Intent(this, MyService.class);
+            intent.setData(Uri.parse(JSON_URL));
+            startService(intent);
+        } else {
+            Toast.makeText(this, "Network Not Available :(", Toast.LENGTH_SHORT).show();
+        }
 
         LocalBroadcastManager.getInstance(getApplicationContext())
                 .registerReceiver(mBroadcastReceiver,
@@ -100,21 +126,26 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void displayDataItems(String category) {
-        mItemList = mDataSource.getAllItems(category);
-        mItemAdapter = new DataItemAdapter(this, mItemList);
-        mRecyclerView.setAdapter(mItemAdapter);
+//        mItemList = mDataSource.getAllItems(category);
+
+        // Check to ensure execution of code only if you have valid data
+        if (mItemList != null) {
+            mItemAdapter = new DataItemAdapter(this, mItemList);
+            mRecyclerView.setAdapter(mItemAdapter);
+        }
+
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        mDataSource.close();
+//        mDataSource.close();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        mDataSource.open();
+//        mDataSource.open();
     }
 
     @Override
