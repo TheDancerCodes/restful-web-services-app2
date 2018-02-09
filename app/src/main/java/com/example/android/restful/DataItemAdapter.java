@@ -3,7 +3,9 @@ package com.example.android.restful;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.graphics.drawable.Drawable;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.os.AsyncTask;
 import android.preference.PreferenceManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
@@ -18,13 +20,18 @@ import com.example.android.restful.model.DataItem;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class DataItemAdapter extends RecyclerView.Adapter<DataItemAdapter.ViewHolder> {
 
+    private static final String TAG = "DataItemAdapter";
     public static final String ITEM_ID_KEY = "item_id_key";
     public static final String ITEM_KEY = "item_key";
     private List<DataItem> mItems;
+    private Map<String, Bitmap> mBitmaps = new HashMap<>(); // Stores the downloaded images that are in memory
     private Context mContext;
     private SharedPreferences.OnSharedPreferenceChangeListener prefsListener;
 
@@ -63,11 +70,20 @@ public class DataItemAdapter extends RecyclerView.Adapter<DataItemAdapter.ViewHo
 
         try {
             holder.tvName.setText(item.getItemName());
-            String imageFile = item.getImage();
-            InputStream inputStream = mContext.getAssets().open(imageFile);
-            Drawable d = Drawable.createFromStream(inputStream, null);
-            holder.imageView.setImageDrawable(d);
-        } catch (IOException e) {
+            // Display image
+
+            // Check whether there's an image is in memory for the name that is set above.
+            if (mBitmaps.containsKey(item.getItemName())) {
+                Bitmap bitmap = mBitmaps.get(item.getItemName());
+                holder.imageView.setImageBitmap(bitmap);
+            } else {
+                // If image is not in memory, launch the task
+                ImageDownloadTask task = new ImageDownloadTask();
+                task.setViewHolder(holder);
+                task.execute(item);
+            }
+
+        } catch (Exception e) {
             e.printStackTrace();
         }
 
@@ -109,6 +125,56 @@ public class DataItemAdapter extends RecyclerView.Adapter<DataItemAdapter.ViewHo
             tvName = (TextView) itemView.findViewById(R.id.itemNameText);
             imageView = (ImageView) itemView.findViewById(R.id.imageView);
             mView = itemView;
+        }
+    }
+
+    private class ImageDownloadTask extends AsyncTask<DataItem, Void, Bitmap> {
+
+        private static final String PHOTOS_BASE_URL =
+                "http://560057.youcanlearnit.net/services/images/";
+        private DataItem mDataItem; // Current data item
+        private ViewHolder mHolder; // Current Visual Row
+
+        // Set reference to the ViewHolder
+        public void setViewHolder (ViewHolder holder) {
+            mHolder = holder;
+        }
+
+        @Override
+        protected Bitmap doInBackground(DataItem... dataItems) {
+
+            mDataItem = dataItems[0];
+            String imageUrl = PHOTOS_BASE_URL + mDataItem.getImage();
+            InputStream in = null;
+
+            try {
+                in = (InputStream) new URL(imageUrl).getContent();
+                return BitmapFactory.decodeStream(in);
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                try {
+                    if (in != null) {
+                        in.close();
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            return null;
+        }
+
+        // Return Bitmap to foreground thread
+
+        @Override
+        protected void onPostExecute(Bitmap bitmap) {
+            super.onPostExecute(bitmap);
+
+            // Display the image
+            mHolder.imageView.setImageBitmap(bitmap);
+
+            // Save image in memory
+            mBitmaps.put(mDataItem.getItemName(), bitmap);
         }
     }
 }

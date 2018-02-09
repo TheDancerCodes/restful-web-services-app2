@@ -39,8 +39,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class MainActivity extends AppCompatActivity
-        implements LoaderManager.LoaderCallbacks<Map<String, Bitmap>> {
+public class MainActivity extends AppCompatActivity {
 
     private static final int SIGNIN_REQUEST = 1001;
     public static final String MY_GLOBAL_PREFS = "my_global_prefs";
@@ -57,7 +56,6 @@ public class MainActivity extends AppCompatActivity
     RecyclerView mRecyclerView;
     DataItemAdapter mItemAdapter;
     boolean networkOk;
-    Map<String, Bitmap> mBitmaps; // instantiate this after downloading everything from the web
 
     private BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
         @Override
@@ -76,9 +74,8 @@ public class MainActivity extends AppCompatActivity
             // Taking a raw array and wrapping it in a complex list of objects
             mItemList = Arrays.asList(dataItems);
 
-            //Initialize Image Loader
-            getSupportLoaderManager().initLoader(0, null, MainActivity.this)
-                    .forceLoad();
+            // Instantiate the item adapter and pass it to the RecyclerView
+            displayDataItems(null);
         }
     };
 
@@ -142,7 +139,7 @@ public class MainActivity extends AppCompatActivity
 
         // Check to ensure execution of code only if you have valid data
         if (mItemList != null) {
-            mItemAdapter = new DataItemAdapter(this, mItemList, mBitmaps);
+            mItemAdapter = new DataItemAdapter(this, mItemList);
             mRecyclerView.setAdapter(mItemAdapter);
         }
 
@@ -214,81 +211,5 @@ public class MainActivity extends AppCompatActivity
         }
 
     }
-
-    @Override
-    public Loader<Map<String, Bitmap>> onCreateLoader(int id, Bundle args) {
-        return new ImageDownloader(this, mItemList);
-    }
-
-    @Override
-    public void onLoadFinished(Loader<Map<String, Bitmap>> loader, Map<String, Bitmap> data) {
-
-        // Save data coming in
-        mBitmaps = data;
-
-        // Instantiate the item adapter and pass it to the RecyclerView
-        displayDataItems(null);
-    }
-
-    @Override
-    public void onLoaderReset(Loader<Map<String, Bitmap>> loader) {
-
-    }
-
-   private static class ImageDownloader extends AsyncTaskLoader<Map<String, Bitmap>> {
-
-        private static final String PHOTO_BASE_URL =
-                "http://560057.youcanlearnit.net/services/images/";
-
-        // Store current item list
-        private static List<DataItem> mItemList;
-
-        // Instantiate the Loader
-        public ImageDownloader(Context context, List<DataItem> itemList) {
-            super(context);
-            mItemList = itemList;
-        }
-
-       @Override
-       public Map<String, Bitmap> loadInBackground() {
-            // download image files here
-
-           // Declare Map Object
-           Map<String, Bitmap> map = new HashMap<>();
-           
-           // Loop through data items that are passed in
-           for (DataItem item: mItemList) {
-
-               // Take name of image file and append to the URL
-               String imageUrl = PHOTO_BASE_URL + item.getImage();
-
-               // Declare and instantiate an input stream
-               InputStream in = null;
-
-               try {
-                   in = (InputStream) new URL(imageUrl).getContent();
-
-                   // Download Bitmap file
-                   Bitmap bitmap = BitmapFactory.decodeStream(in);
-
-                   // Store Bitmap
-                   map.put(item.getItemName(), bitmap);
-               } catch (IOException e) {
-                   e.printStackTrace();
-               } finally {
-
-                   // Close the Input Stream
-                   try {
-                       in.close();
-                   } catch (IOException e) {
-                       e.printStackTrace();
-                   }
-               }
-
-           }
-
-           return map;
-       }
-   }
 
 }
