@@ -17,6 +17,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.android.restful.model.DataItem;
+import com.example.android.restful.utils.ImageCacheManager;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,7 +32,7 @@ public class DataItemAdapter extends RecyclerView.Adapter<DataItemAdapter.ViewHo
     public static final String ITEM_ID_KEY = "item_id_key";
     public static final String ITEM_KEY = "item_key";
     private List<DataItem> mItems;
-    private Map<String, Bitmap> mBitmaps = new HashMap<>(); // Stores the downloaded images that are in memory
+//    private Map<String, Bitmap> mBitmaps = new HashMap<>(); // Stores the downloaded images that are in memory
     private Context mContext;
     private SharedPreferences.OnSharedPreferenceChangeListener prefsListener;
 
@@ -72,15 +73,19 @@ public class DataItemAdapter extends RecyclerView.Adapter<DataItemAdapter.ViewHo
             holder.tvName.setText(item.getItemName());
             // Display image
 
-            // Check whether there's an image is in memory for the name that is set above.
-            if (mBitmaps.containsKey(item.getItemName())) {
-                Bitmap bitmap = mBitmaps.get(item.getItemName());
-                holder.imageView.setImageBitmap(bitmap);
-            } else {
-                // If image is not in memory, launch the task
-                ImageDownloadTask task = new ImageDownloadTask();
+            // Reference to ImageCacheManager
+            Bitmap bitmap = ImageCacheManager.getBitmap(mContext, item);
+
+            // Check whether we got a null value back.
+            if (bitmap == null) {
+
+                // Run Image Download task
+                ImageDownloadTask task =  new ImageDownloadTask();
                 task.setViewHolder(holder);
                 task.execute(item);
+            } else {
+                // Display the Bitmpa we get from persistent storage
+                holder.imageView.setImageBitmap(bitmap);
             }
 
         } catch (Exception e) {
@@ -173,8 +178,8 @@ public class DataItemAdapter extends RecyclerView.Adapter<DataItemAdapter.ViewHo
             // Display the image
             mHolder.imageView.setImageBitmap(bitmap);
 
-            // Save image in memory
-            mBitmaps.put(mDataItem.getItemName(), bitmap);
+            // Save image in Persistence Storage
+            ImageCacheManager.putBitmap(mContext, mDataItem, bitmap);
         }
     }
 }
